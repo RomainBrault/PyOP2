@@ -102,6 +102,48 @@ def debug(*msg):
     if cfg.debug:
         debug(*msg)
 
+# Lazy evaluation support code
+class LazyComputation(object):
+
+    def __init__(self, reads, writes):
+        self.reads = reads
+        self.writes = writes
+        self._scheduled = False
+
+        global _trace
+        _trace.append(self)
+
+    def _run(self):
+        assert False, "Not implemented"
+
+def _force(reads, writes):
+    """Forces the evaluation of delayed computation on which reads and writes
+    depend.
+    """
+    def _depends_on(reads, writes, cont):
+        return not not (reads & cont.writes | writes & cont.reads | writes & cont.writes)
+
+    global _trace
+
+    for cont in reversed(_trace):
+        if _depends_on(reads, writes, cont):
+            cont._scheduled = True
+            reads = reads | cont.reads - cont.writes
+            writes = writes | cont.writes
+        else:
+            cont._scheduled = False
+
+    nt = list()
+    for cont in _trace:
+        if cont._scheduled:
+            cont._run()
+        else:
+            nt.append(cont)
+    _trace = nt
+
+"""List maintaining delayed computation until they are executed."""
+_trace = list()
+
 # Data API
 
 class Access(object):
@@ -1718,44 +1760,3 @@ class Solver(object):
         """
         _force(set([A,b]), set([x]))
         raise NotImplementedError("solve must be implemented by backend")
-
-class LazyComputation(object):
-
-    def __init__(self, reads, writes):
-        self.reads = reads
-        self.writes = writes
-        self._scheduled = False
-
-        global _trace
-        _trace.append(self)
-
-    def _run(self):
-        assert False, "Not implemented"
-
-def _force(reads, writes):
-    """Forces the evaluation of delayed computation on which reads and writes
-    depend.
-    """
-    def _depends_on(reads, writes, cont):
-        return not not (reads & cont.writes | writes & cont.reads | writes & cont.writes)
-
-    global _trace
-
-    for cont in reversed(_trace):
-        if _depends_on(reads, writes, cont):
-            cont._scheduled = True
-            reads = reads | cont.reads - cont.writes
-            writes = writes | cont.writes
-        else:
-            cont._scheduled = False
-
-    nt = list()
-    for cont in _trace:
-        if cont._scheduled:
-            cont._run()
-        else:
-            nt.append(cont)
-    _trace = nt
-
-"""List maintaining delayed computation until they are executed."""
-_trace = list()
