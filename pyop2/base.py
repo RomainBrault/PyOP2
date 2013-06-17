@@ -1746,7 +1746,7 @@ def _force(reads, writes):
             cont._scheduled = True
             reads = reads | cont.reads - cont.writes
             writes = writes | cont.writes
-        else
+        else:
             cont._scheduled = False
 
     nt = list()
